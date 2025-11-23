@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Settings, TrendingUp, TrendingDown, AlertCircle, CheckCircle, XCircle, Zap, LogOut, User, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Play, Pause, Settings, TrendingUp, AlertCircle, CheckCircle, XCircle, Zap, LogOut, User } from 'lucide-react';
 
-const GEMINI_API_KEY = 'AIzaSyDuoA5cIPyb8mWwMPzUooYhuxkTp4kY4dE';
-const DERIV_APP_ID = '106298';
+const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || 'AIzaSyDuoA5cIPyb8mWwMPzUooYhuxkTp4kY4dE';
+const DERIV_APP_ID = process.env.REACT_APP_DERIV_APP_ID || '106298';
 const DERIV_API_URL = 'wss://ws.deriv.com';
 const DERIV_AUTH_URL = 'https://oauth.deriv.com/oauth2/authorize';
 
@@ -22,7 +22,6 @@ const getRedirectUri = () => {
 export default function DerivAIBot() {
   const [authState, setAuthState] = useState('login');
   const [derivToken, setDerivToken] = useState(localStorage.getItem('derivToken') || '');
-  const [derivUserId, setDerivUserId] = useState(localStorage.getItem('derivUserId') || '');
   const [currentUser, setCurrentUser] = useState(null);
   const [manualTokenInput, setManualTokenInput] = useState('');
   
@@ -117,7 +116,7 @@ export default function DerivAIBot() {
     if (!token && !code && derivToken && !currentUser) {
       authenticateWithDerivToken(derivToken);
     }
-  }, []);
+  }, [derivToken, currentUser]);
 
   const exchangeCodeForToken = async (code) => {
     try {
@@ -162,7 +161,6 @@ export default function DerivAIBot() {
         }
         
         if (response.authorize) {
-          setDerivUserId(response.authorize.user_id);
           localStorage.setItem('derivUserId', response.authorize.user_id);
           setCurrentUser({ 
             id: response.authorize.user_id, 
@@ -201,7 +199,6 @@ export default function DerivAIBot() {
     localStorage.removeItem('derivToken');
     localStorage.removeItem('derivUserId');
     setDerivToken('');
-    setDerivUserId('');
     setCurrentUser(null);
     setAuthState('login');
     setConnected(false);

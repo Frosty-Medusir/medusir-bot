@@ -21,7 +21,12 @@ const getRedirectUri = () => {
 
 export default function DerivAIBot() {
   const [authState, setAuthState] = useState('login');
-  const [derivToken, setDerivToken] = useState(localStorage.getItem('derivToken') || '');
+  const [derivToken, setDerivToken] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('derivToken') || '';
+    }
+    return '';
+  });
   const [currentUser, setCurrentUser] = useState(null);
   const [manualTokenInput, setManualTokenInput] = useState('');
   
@@ -57,13 +62,18 @@ export default function DerivAIBot() {
   const logsEndRef = useRef(null);
 
   const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem('medusirBotUsers');
-    return saved ? JSON.parse(saved) : [];
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('medusirBotUsers');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
   });
 
   const saveUsers = (newUsers) => {
     setUsers(newUsers);
-    localStorage.setItem('medusirBotUsers', JSON.stringify(newUsers));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('medusirBotUsers', JSON.stringify(newUsers));
+    }
   };
 
   const addLog = (message, type = 'info') => {
@@ -84,7 +94,9 @@ export default function DerivAIBot() {
       addLog('❌ Please enter a token', 'error');
       return;
     }
-    localStorage.setItem('derivToken', manualTokenInput);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('derivToken', manualTokenInput);
+    }
     setDerivToken(manualTokenInput);
     addLog('✅ Token saved!', 'success');
     authenticateWithDerivToken(manualTokenInput);
@@ -123,7 +135,9 @@ export default function DerivAIBot() {
       // Note: This requires a backend server to securely exchange code for token
       // For now, we'll use the code directly as a temporary workaround
       addLog('⚠️ Using authorization code...', 'info');
-      localStorage.setItem('derivToken', code);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('derivToken', code);
+      }
       setDerivToken(code);
       window.history.replaceState({}, document.title, window.location.pathname);
       authenticateWithDerivToken(code);
@@ -196,8 +210,10 @@ export default function DerivAIBot() {
       saveUsers(updatedUsers);
     }
 
-    localStorage.removeItem('derivToken');
-    localStorage.removeItem('derivUserId');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('derivToken');
+      localStorage.removeItem('derivUserId');
+    }
     setDerivToken('');
     setCurrentUser(null);
     setAuthState('login');

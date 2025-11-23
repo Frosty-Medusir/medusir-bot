@@ -9,6 +9,10 @@ const DERIV_AUTH_URL = 'https://oauth.deriv.com/oauth2/authorize';
 // For local development with HTTPS, use: https://localhost:3000
 // For production, use your actual domain: https://www.yourdomain.com
 const getRedirectUri = () => {
+  if (typeof window === 'undefined') {
+    return 'https://medusirderiv.vercel.app';
+  }
+  
   const origin = window.location.origin;
   
   // If running on localhost, convert to https
@@ -20,6 +24,7 @@ const getRedirectUri = () => {
 };
 
 export default function DerivAIBot() {
+  const [isClient, setIsClient] = useState(false);
   const [authState, setAuthState] = useState('login');
   const [derivToken, setDerivToken] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -32,6 +37,11 @@ export default function DerivAIBot() {
   
   const wsRef = useRef(null);
   const requestIdRef = useRef(0);
+
+  // Ensure component only renders on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const [connected, setConnected] = useState(false);
   const [accounts, setAccounts] = useState([]);
@@ -567,6 +577,15 @@ export default function DerivAIBot() {
     }
     return () => clearInterval(interval);
   }, [botRunning, selectedAccount, settings]);
+
+  // Only render on client side
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-black via-red-950 to-black flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   // Login/Register UI with iOS Liquid Glass Design
   if (authState !== 'authenticated') {

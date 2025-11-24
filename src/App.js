@@ -274,10 +274,10 @@ export default function DerivAIBot() {
     const macd = Math.random() > 0.5 ? 'bullish' : 'bearish';
     const trend = rsi > 50 ? 'uptrend' : 'downtrend';
     
-    // Generate historical data for backtesting
+    // Generate historical data for backtesting (number sequence)
     const historicalData = Array.from({ length: 20 }, (_, i) => ({
       timestamp: new Date(Date.now() - (20 - i) * 5 * 60 * 1000),
-      price: basePrice + (Math.random() - 0.5) * 0.03,
+      number: Math.floor(Math.random() * (selected.max - selected.min + 1)) + selected.min,
       volume: Math.random() * 1000000
     }));
     
@@ -441,7 +441,7 @@ export default function DerivAIBot() {
       contractType: 'MATCH',
       direction: analysis.direction,
       stake: parseFloat(stake.toFixed(2)),
-      entryPrice: market.currentPrice,
+      entryNumber: market.currentNumber,
       timestamp: new Date().toLocaleTimeString(),
       status: 'pending',
       confidence: analysis.confidence,
@@ -509,7 +509,7 @@ export default function DerivAIBot() {
     }
 
     const market = await fetchMarketData();
-    addLog(`📊 ${market.symbol} @ $${market.currentPrice.toFixed(4)}`, 'info');
+    addLog(`📊 ${market.display} - Target: ${market.targetNumber} | Current: ${market.currentNumber}`, 'info');
     
     const analysis = await analyzeWithAI(market);
     if (analysis) {

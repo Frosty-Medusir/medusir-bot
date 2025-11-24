@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Settings, TrendingUp, AlertCircle, CheckCircle, XCircle, Zap, LogOut, User, Chrome, Eye, EyeOff, Key } from 'lucide-react';
+import { Play, Pause, Settings, TrendingUp, Zap, LogOut, Eye, EyeOff, Key } from 'lucide-react';
 
 // ✅ KEY INTEGRATED HERE
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || 'AIzaSyDuoA5cIPyb8mWwMPzUooYhuxkTp4kY4dE';
@@ -354,12 +354,12 @@ export default function DerivAIBot() {
     }, randomDuration);
   };
 
-  const runTradingCycle = async () => {
+  const runTradingCycle = useCallback(async () => {
     if (!selectedAccount || !botRunning) return;
     const market = await fetchMarketData();
     const analysis = await analyzeWithAI(market);
     if (analysis) await executeTrade(market, analysis);
-  };
+  }, [selectedAccount, botRunning]);
 
   // Bot Loop
   useEffect(() => {
@@ -373,7 +373,7 @@ export default function DerivAIBot() {
       }, 8000); // 8 seconds between cycles to allow Gemini to respond
     }
     return () => clearInterval(interval);
-  }, [botRunning, connected, selectedAccount, settings]);
+  }, [botRunning, connected, runTradingCycle, settings]);
 
   // --- RENDER ---
 

@@ -3,25 +3,7 @@ import { Play, Pause, Settings, TrendingUp, AlertCircle, CheckCircle, XCircle, Z
 
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || 'AIzaSyDuoA5cIPyb8mWwMPzUooYhuxkTp4kY4dE';
 const DERIV_APP_ID = process.env.REACT_APP_DERIV_APP_ID || '106298';
-const DERIV_AUTH_URL = 'https://oauth.deriv.com/oauth2/authorize';
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '659028839506-nbcvr8qsrmr5ublqkm94f6dkjv5dgjnn.apps.googleusercontent.com';
-
-// For local development with HTTPS, use: https://localhost:3000
-// For production, use your actual domain: https://www.yourdomain.com
-const getRedirectUri = () => {
-  if (typeof window === 'undefined') {
-    return 'https://medusirderiv.vercel.app';
-  }
-  
-  const origin = window.location.origin;
-  
-  // If running on localhost, convert to https
-  if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-    return origin.replace('http://', 'https://');
-  }
-  
-  return origin;
-};
 
 export default function DerivAIBot() {
   const [isClient, setIsClient] = useState(false);

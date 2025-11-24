@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Settings, TrendingUp, AlertCircle, CheckCircle, XCircle, Zap, LogOut, User, Chrome } from 'lucide-react';
+import { Play, Pause, Settings, TrendingUp, AlertCircle, CheckCircle, XCircle, Zap, LogOut, User, Chrome, Eye, EyeOff } from 'lucide-react';
 
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || 'AIzaSyDuoA5cIPyb8mWwMPzUooYhuxkTp4kY4dE';
 const DERIV_APP_ID = process.env.REACT_APP_DERIV_APP_ID || '106298';
@@ -17,6 +17,7 @@ export default function DerivAIBot() {
   const [currentUser, setCurrentUser] = useState(null);
   const [derivUsername, setDerivUsername] = useState('');
   const [derivPassword, setDerivPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
 
   // Ensure component only renders on client
@@ -84,18 +85,46 @@ export default function DerivAIBot() {
     addLog('🔄 Authenticating with Deriv...', 'info');
 
     try {
-      // Simulate Deriv API authentication (in production, call actual Deriv API)
-      const demoToken = btoa(`${derivUsername}:${Date.now()}`);
+      // Call Deriv API to get token from credentials
+      const response = await fetch('https://api.deriv.com/api/v3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          verify_email: derivUsername,
+          password: derivPassword,
+          req_id: 1
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to connect to Deriv API');
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        addLog(`❌ Login failed: ${data.error.message}`, 'error');
+        setLoginLoading(false);
+        return;
+      }
+
+      if (!data.verify_email || !data.verify_email.authorize_token) {
+        addLog('❌ Invalid credentials or no token received', 'error');
+        setLoginLoading(false);
+        return;
+      }
+
+      const token = data.verify_email.authorize_token;
       
       if (typeof window !== 'undefined') {
-        localStorage.setItem('derivToken', demoToken);
+        localStorage.setItem('derivToken', token);
         localStorage.setItem('derivUsername', derivUsername);
       }
       
-      setDerivToken(demoToken);
+      setDerivToken(token);
       setDerivPassword('');
       addLog(`✅ Logged in as: ${derivUsername}`, 'success');
-      authenticateWithDerivToken(demoToken, derivUsername);
+      authenticateWithDerivToken(token, derivUsername);
     } catch (error) {
       addLog(`❌ Login failed: ${error.message}`, 'error');
     } finally {
@@ -216,8 +245,18 @@ export default function DerivAIBot() {
       setConnected(true);
       addLog(`✅ Found ${realAccounts.length} real account(s)`, 'success');
     } catch (error) {
-      addLog(`❌ Error fetching accounts: ${error.message}`, 'error');
-      setConnected(false);
+      // Fallback: Show demo mode when API fails (for development/testing)
+      addLog(`⚠️ Could not fetch live accounts: ${error.message}`, 'warning');
+      addLog('📊 Loading demo accounts for testing...', 'info');
+      
+      const demoAccounts = [
+        { id: 'DEMO1234', name: 'Demo Trading Account', type: 'demo', currency: 'USD', balance: 10000 },
+        { id: 'DEMO5678', name: 'Demo Practice Account', type: 'demo', currency: 'USD', balance: 5000 }
+      ];
+      
+      setAccounts(demoAccounts);
+      setConnected(true);
+      addLog(`✅ Demo mode: ${demoAccounts.length} demo account(s) available`, 'success');
     }
   };
 
@@ -255,29 +294,29 @@ export default function DerivAIBot() {
   };
 
   const fetchMarketData = async () => {
-    // Matches contracts: predict if a number will match a target
+    // Deriv Matches contracts - real symbols from Deriv platform
     const matchesSymbols = [
-      { symbol: 'MATCH_1', display: 'Matches 1-10', min: 1, max: 10 },
-      { symbol: 'MATCH_2', display: 'Matches 11-20', min: 11, max: 20 },
-      { symbol: 'MATCH_3', display: 'Matches 21-30', min: 21, max: 30 },
-      { symbol: 'MATCH_4', display: 'Matches 31-40', min: 31, max: 40 },
-      { symbol: 'MATCH_5', display: 'Matches 41-50', min: 41, max: 50 }
+      { symbol: '1HZ100V', display: 'Volatility 100', type: 'volatility' },
+      { symbol: '1HZ50V', display: 'Volatility 50', type: 'volatility' },
+      { symbol: '1HZ10V', display: 'Volatility 10', type: 'volatility' },
+      { symbol: 'R_100', display: 'RangeBreak 100', type: 'rangebreak' },
+      { symbol: 'STPJPY', display: 'Step Index JPY', type: 'step' }
     ];
     
     const selected = matchesSymbols[Math.floor(Math.random() * matchesSymbols.length)];
     
-    // Generate realistic match number data
-    const targetNumber = Math.floor(Math.random() * (selected.max - selected.min + 1)) + selected.min;
-    const currentNumber = Math.floor(Math.random() * (selected.max - selected.min + 1)) + selected.min;
-    const volatility = 0.3 + Math.random() * 0.5;
+    // Generate realistic match prediction data
+    const targetPrice = 100 + (Math.random() - 0.5) * 50;
+    const currentPrice = 100 + (Math.random() - 0.5) * 50;
+    const volatility = 0.3 + Math.random() * 0.7;
     const rsi = 30 + Math.random() * 40;
     const macd = Math.random() > 0.5 ? 'bullish' : 'bearish';
     const trend = rsi > 50 ? 'uptrend' : 'downtrend';
     
-    // Generate historical data for backtesting (number sequence)
+    // Generate historical data for backtesting
     const historicalData = Array.from({ length: 20 }, (_, i) => ({
       timestamp: new Date(Date.now() - (20 - i) * 5 * 60 * 1000),
-      number: Math.floor(Math.random() * (selected.max - selected.min + 1)) + selected.min,
+      price: 100 + (Math.random() - 0.5) * 50,
       volume: Math.random() * 1000000
     }));
     
@@ -285,9 +324,9 @@ export default function DerivAIBot() {
       symbol: selected.symbol,
       display: selected.display,
       contractType: 'MATCH',
-      currentNumber,
-      targetNumber,
-      numberRange: `${selected.min}-${selected.max}`,
+      currentPrice,
+      targetPrice,
+      priceRange: `${Math.round(targetPrice - 10)}-${Math.round(targetPrice + 10)}`,
       volatility,
       trend,
       rsi,
@@ -302,17 +341,17 @@ export default function DerivAIBot() {
     try {
       // Prepare market context for Gemini
       const marketContext = `
-        Market Symbol: ${market.display}
-        Target Number: ${market.targetNumber}
-        Current Number: ${market.currentNumber}
-        Number Range: ${market.numberRange}
+        Market Symbol: ${market.display} (${market.symbol})
+        Target Price: ${market.targetPrice.toFixed(2)}
+        Current Price: ${market.currentPrice.toFixed(2)}
+        Price Range: ${market.priceRange}
         Volatility: ${market.volatility.toFixed(2)}
         RSI (Relative Strength Index): ${Math.round(market.rsi)}
         MACD Signal: ${market.macd}
         Trend: ${market.trend}
         
         Historical Data (last 20 periods):
-        ${market.historicalData.map((d, i) => `Period ${i}: $${d.price.toFixed(4)}`).join('\n')}
+        ${market.historicalData.map((d, i) => `Period ${i}: ${d.price.toFixed(2)}`).join('\n')}
         
         Please analyze this market data and provide:
         1. A trading signal (BUY for uptrend, SELL for downtrend)
@@ -441,13 +480,13 @@ export default function DerivAIBot() {
       contractType: 'MATCH',
       direction: analysis.direction,
       stake: parseFloat(stake.toFixed(2)),
-      entryNumber: market.currentNumber,
+      entryPrice: market.currentPrice,
       timestamp: new Date().toLocaleTimeString(),
       status: 'pending',
       confidence: analysis.confidence,
     };
 
-    addLog(`🤖 MATCH Trade: ${market.display} | Target: ${market.targetNumber} | Current: ${market.currentNumber} | Stake: $${stake.toFixed(2)}`, 'success');
+    addLog(`🤖 MATCH Trade: ${market.display} | Target: ${market.targetPrice.toFixed(2)} | Current: ${market.currentPrice.toFixed(2)} | Stake: $${stake.toFixed(2)}`, 'success');
     
     const newTrades = [trade, ...trades];
     setTrades(newTrades);
@@ -509,7 +548,7 @@ export default function DerivAIBot() {
     }
 
     const market = await fetchMarketData();
-    addLog(`📊 ${market.display} - Target: ${market.targetNumber} | Current: ${market.currentNumber}`, 'info');
+    addLog(`📊 ${market.display} - Target: ${market.targetPrice.toFixed(2)} | Current: ${market.currentPrice.toFixed(2)}`, 'info');
     
     const analysis = await analyzeWithAI(market);
     if (analysis) {
@@ -601,15 +640,25 @@ export default function DerivAIBot() {
 
                   <div>
                     <label className="block text-sm font-semibold text-white mb-2">Password</label>
-                    <input
-                      type="password"
-                      placeholder="Enter your Deriv password"
-                      value={derivPassword}
-                      onChange={(e) => setDerivPassword(e.target.value)}
-                      disabled={loginLoading}
-                      onKeyPress={(e) => e.key === 'Enter' && handleDerivLogin(e)}
-                      className="w-full backdrop-blur-xl bg-white/10 rounded-2xl px-4 py-3 text-white placeholder-white/40 border border-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Enter your Deriv password"
+                        value={derivPassword}
+                        onChange={(e) => setDerivPassword(e.target.value)}
+                        disabled={loginLoading}
+                        onKeyPress={(e) => e.key === 'Enter' && handleDerivLogin(e)}
+                        className="w-full backdrop-blur-xl bg-white/10 rounded-2xl px-4 py-3 pr-12 text-white placeholder-white/40 border border-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        disabled={loginLoading}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition disabled:opacity-50"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
 
                   <button
@@ -732,21 +781,61 @@ export default function DerivAIBot() {
           <>
             {!selectedAccount && (
               <div className="backdrop-blur-3xl bg-gradient-to-br from-red-900/30 to-red-950/30 rounded-3xl p-8 mb-6 border border-red-500/20">
-                <h2 className="text-2xl font-bold mb-4">Select Trading Account</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {accounts.map(account => (
-                    <button
-                      key={account.id}
-                      onClick={() => selectAccount(account)}
-                      className="backdrop-blur-xl bg-white/10 hover:bg-white/20 rounded-2xl p-6 text-left transition border border-white/20 hover:border-red-500/50"
-                    >
-                      <div className="font-bold text-lg">{account.name}</div>
-                      <div className="text-sm text-white/60 mt-2">{account.id}</div>
-                      <div className="text-2xl font-bold mt-4 bg-gradient-to-r from-red-400 to-red-600 bg-clip-text text-transparent">${account.balance}</div>
-                      <div className="text-xs text-white/50 uppercase mt-2">{account.type}</div>
-                    </button>
-                  ))}
+                <h2 className="text-2xl font-bold mb-6">Select Trading Account</h2>
+                
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-blue-300 mb-3 flex items-center gap-2">
+                    <span className="text-blue-400">📊</span> Demo Accounts (Risk-Free Practice)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {accounts.filter(a => a.type === 'demo').map(account => (
+                      <button
+                        key={account.id}
+                        onClick={() => selectAccount(account)}
+                        className="backdrop-blur-xl bg-blue-600/20 hover:bg-blue-600/30 rounded-2xl p-6 text-left transition border border-blue-500/50 hover:border-blue-400 transform hover:scale-105"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-bold text-lg text-blue-300">{account.name}</div>
+                            <div className="text-sm text-white/60 mt-1">{account.id}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-blue-400">${account.balance.toLocaleString()}</div>
+                            <div className="text-xs text-blue-300 uppercase mt-1 font-semibold">Demo</div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                
+                {accounts.some(a => a.type === 'real') && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-green-300 mb-3 flex items-center gap-2">
+                      <span className="text-green-400">💰</span> Real Money Accounts
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {accounts.filter(a => a.type === 'real').map(account => (
+                        <button
+                          key={account.id}
+                          onClick={() => selectAccount(account)}
+                          className="backdrop-blur-xl bg-green-600/20 hover:bg-green-600/30 rounded-2xl p-6 text-left transition border border-green-500/50 hover:border-green-400 transform hover:scale-105"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-bold text-lg text-green-300">{account.name}</div>
+                              <div className="text-sm text-white/60 mt-1">{account.id}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-green-400">${account.balance.toLocaleString()}</div>
+                              <div className="text-xs text-green-300 uppercase mt-1 font-semibold">Real</div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

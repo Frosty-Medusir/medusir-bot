@@ -171,17 +171,53 @@ export default function DerivAIBot() {
 
   const fetchAccounts = async (token) => {
     try {
-      addLog('🔄 Fetching accounts...', 'info');
-      const mockAccounts = [
-        { id: 'VRTC1234', name: 'USD Account', type: 'real', balance: 5000 },
-        { id: 'VRTC5678', name: 'EUR Account', type: 'real', balance: 3000 },
-        { id: 'VRTC9012', name: 'Demo Account', type: 'demo', balance: 10000 },
-      ];
-      setAccounts(mockAccounts);
+      addLog('🔄 Fetching accounts from Deriv API...', 'info');
+      
+      // Call Deriv API to get real accounts
+      const response = await fetch('https://api.deriv.com/api/v3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          authorize: token,
+          req_id: 1
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to connect to Deriv API');
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        addLog(`❌ Deriv API Error: ${data.error.message}`, 'error');
+        return;
+      }
+
+      if (!data.authorize || !data.authorize.account_list) {
+        addLog('❌ No real accounts found. Invalid token or no accounts linked.', 'error');
+        return;
+      }
+
+      const realAccounts = data.authorize.account_list.map(acc => ({
+        id: acc.loginid,
+        name: acc.account_type === 'real' ? 'Real Account' : 'Demo Account',
+        type: acc.account_type,
+        currency: acc.currency,
+        balance: acc.balance || 0
+      }));
+
+      if (realAccounts.length === 0) {
+        addLog('❌ No accounts available', 'error');
+        return;
+      }
+
+      setAccounts(realAccounts);
       setConnected(true);
-      addLog(`✅ Found ${mockAccounts.length} accounts`, 'success');
+      addLog(`✅ Found ${realAccounts.length} real account(s)`, 'success');
     } catch (error) {
-      addLog(`❌ Error: ${error.message}`, 'error');
+      addLog(`❌ Error fetching accounts: ${error.message}`, 'error');
+      setConnected(false);
     }
   };
 
@@ -221,16 +257,18 @@ export default function DerivAIBot() {
   const fetchMarketData = async () => {
     // Matches contracts: predict if a number will match a target
     const matchesSymbols = [
-      { symbol: 'MATCH_EURUSD', display: 'EURUSD Match' },
-      { symbol: 'MATCH_GBPUSD', display: 'GBPUSD Match' },
-      { symbol: 'MATCH_USDJPY', display: 'USDJPY Match' }
+      { symbol: 'MATCH_1', display: 'Matches 1-10', min: 1, max: 10 },
+      { symbol: 'MATCH_2', display: 'Matches 11-20', min: 11, max: 20 },
+      { symbol: 'MATCH_3', display: 'Matches 21-30', min: 21, max: 30 },
+      { symbol: 'MATCH_4', display: 'Matches 31-40', min: 31, max: 40 },
+      { symbol: 'MATCH_5', display: 'Matches 41-50', min: 41, max: 50 }
     ];
     
     const selected = matchesSymbols[Math.floor(Math.random() * matchesSymbols.length)];
     
-    // Generate realistic market data
-    const basePrice = 1.0800;
-    const currentPrice = basePrice + (Math.random() - 0.5) * 0.02;
+    // Generate realistic match number data
+    const targetNumber = Math.floor(Math.random() * (selected.max - selected.min + 1)) + selected.min;
+    const currentNumber = Math.floor(Math.random() * (selected.max - selected.min + 1)) + selected.min;
     const volatility = 0.3 + Math.random() * 0.5;
     const rsi = 30 + Math.random() * 40;
     const macd = Math.random() > 0.5 ? 'bullish' : 'bearish';
@@ -247,7 +285,9 @@ export default function DerivAIBot() {
       symbol: selected.symbol,
       display: selected.display,
       contractType: 'MATCH',
-      currentPrice,
+      currentNumber,
+      targetNumber,
+      numberRange: `${selected.min}-${selected.max}`,
       volatility,
       trend,
       rsi,
@@ -263,7 +303,9 @@ export default function DerivAIBot() {
       // Prepare market context for Gemini
       const marketContext = `
         Market Symbol: ${market.display}
-        Current Price: $${market.currentPrice.toFixed(4)}
+        Target Number: ${market.targetNumber}
+        Current Number: ${market.currentNumber}
+        Number Range: ${market.numberRange}
         Volatility: ${market.volatility.toFixed(2)}
         RSI (Relative Strength Index): ${Math.round(market.rsi)}
         MACD Signal: ${market.macd}
@@ -405,7 +447,7 @@ export default function DerivAIBot() {
       confidence: analysis.confidence,
     };
 
-    addLog(`🤖 MATCH Trade: ${market.display} | Stake: $${stake.toFixed(2)} | Direction: ${analysis.direction}`, 'success');
+    addLog(`🤖 MATCH Trade: ${market.display} | Target: ${market.targetNumber} | Current: ${market.currentNumber} | Stake: $${stake.toFixed(2)}`, 'success');
     
     const newTrades = [trade, ...trades];
     setTrades(newTrades);

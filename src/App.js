@@ -3,7 +3,7 @@ import { Play, Pause, Settings, TrendingUp, AlertCircle, CheckCircle, XCircle, Z
 
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || 'AIzaSyDuoA5cIPyb8mWwMPzUooYhuxkTp4kY4dE';
 const DERIV_APP_ID = process.env.REACT_APP_DERIV_APP_ID || '106298';
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '659028839506-nbcvr8qsrmr5ublqkm94f6dkjv5dgjnn.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
 
 export default function DerivAIBot() {
   const [isClient, setIsClient] = useState(false);
@@ -600,12 +600,28 @@ export default function DerivAIBot() {
 
                 <button
                   onClick={handleGoogleLogin}
-                  disabled={loginLoading}
-                  className="w-full bg-white hover:bg-white/90 disabled:bg-white/50 rounded-2xl py-4 font-bold text-gray-900 transition duration-300 transform hover:scale-105 disabled:scale-100 shadow-lg flex items-center justify-center gap-3 text-lg"
+                  disabled={loginLoading || !GOOGLE_CLIENT_ID}
+                  className={`w-full rounded-2xl py-4 font-bold transition duration-300 transform shadow-lg flex items-center justify-center gap-3 text-lg ${
+                    !GOOGLE_CLIENT_ID
+                      ? 'bg-gray-600/50 text-gray-400 opacity-50 cursor-not-allowed disabled:scale-100'
+                      : 'bg-white hover:bg-white/90 text-gray-900 hover:scale-105 disabled:bg-white/50'
+                  }`}
                 >
                   <Chrome className="w-6 h-6" />
-                  Login with Google
+                  {!GOOGLE_CLIENT_ID ? 'Google Login (Not Configured)' : 'Login with Google'}
                 </button>
+
+                {!GOOGLE_CLIENT_ID && (
+                  <div className="mt-4 p-4 bg-orange-900/20 rounded-xl border border-orange-500/30">
+                    <p className="text-sm text-orange-200">
+                      <strong>📝 Setup Google OAuth:</strong><br/>
+                      1. Visit <span className="font-mono text-orange-300">console.cloud.google.com</span><br/>
+                      2. Create OAuth 2.0 credentials<br/>
+                      3. Add redirect: <span className="font-mono text-xs text-orange-300">http://localhost:3000</span><br/>
+                      4. Copy Client ID to <span className="font-mono text-orange-300">.env.local</span>
+                    </p>
+                  </div>
+                )}
 
                 <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/10">
                   <p className="text-xs text-white/60 text-center">
